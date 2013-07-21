@@ -1,5 +1,5 @@
 /*
-Scroller Version 2 (beta 1) by jlangvand, jlangvand@gmail.com
+Scroller Version 2.0 by jlangvand, jlangvand@gmail.com
 
 Copyright 2013 Joakim Langvand
 
@@ -65,8 +65,9 @@ LiquidCrystal lcd(8,9,4,5,6,7); // Initialize the LCD
 
 #define DEBUG 1
 #define ENABLE_SOUND_BY_DEFAULT 1
+#define ENABLE_HOLD 1
 
-#define VERSION "v2b2"
+#define VERSION "v2.0"
 
 class Enemy {
   int *x, *y;
@@ -140,17 +141,13 @@ void setup() {
   // Initialize hardware
   lcd.begin( LCD_COLS, LCD_ROWS );
   Serial.begin( 9600 );
-  highscore = EEPROM.read( 206 );
+  highscore = EEPROM.read( 200 ) * 255; // Read multiplier
+  highscore += EEPROM.read( 201); // Add remainder
   
   welcome( 1 );
   
   for ( int c=0; c<MAX_ENEMIES; c++ ) exist[ c ] = 0;
   for ( int c=0; c<MAX_BULLETS; c++ ) bullet_exists[ c ] = 0;
-  
-  Serial.print( "Highscore in EEPROM: " );
-  Serial.println( highscore );
-  Serial.print( "Raw dump addr 0x206: " );
-  Serial.println( EEPROM.read( 206 ) );
   
   randomSeed( analogRead( 2 ) );
 }
@@ -170,7 +167,12 @@ void loop() {
 // Player logic
 
 void movePlayer() {
-  switch ( getSingleButton() ) {
+  int cur;
+  
+  if ( ENABLE_HOLD ) cur = currentButton;
+  else cur = getSingleButton();
+  
+  switch ( cur ) {
     case BTN_UP:
     playerPos[ POS_Y ]--;
     break;
@@ -294,7 +296,12 @@ void endgame() {
   lcd.clear();
   lcd.display();
   if (score > highscore) {
-    EEPROM.write(206, score);
+    int mult;
+    int remain;
+    mult = score / 255;
+    remain = score % 255;
+    EEPROM.write(200, mult);
+    EEPROM.write(201, remain);
     lcd.print("*  HIGHSCORE!  *");
     buzzdrop(1);
   } else {
@@ -452,7 +459,8 @@ void welcome(int val) {
     lcd.print("Up to clear");
     while( getButton() == BTN_SELECT || !getButton() );
     if( getButton() == BTN_UP ) {
-      EEPROM.write(206, 0);
+      EEPROM.write(200, 0);
+      EEPROM.write(201, 0);
       lcd.clear();
       lcd.print("EEPROM cleared");
       buzzer(700, 30, 3);
