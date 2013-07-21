@@ -61,13 +61,51 @@ LiquidCrystal lcd(8,9,4,5,6,7); // Initialize the LCD
 #define POS_Y_MAX LCD_ROWS -1
 
 #define MAX_ENEMIES 7
-#define MAX_BULLETS 8
+#define MAX_BULLETS 4
+
+#define NEW_ENEMY_PROBABILITY 25
 
 #define DEBUG 1
 #define ENABLE_SOUND_BY_DEFAULT 1
 #define ENABLE_HOLD 1
 
+#define CHAR_PLAYER 0
+#define CHAR_ENEMY 1
+#define CHAR_BULLET 2
+
 #define VERSION "v2.0"
+
+// Define some nice "sprites"
+
+byte playerChar[8] = {
+  B00000,
+  B10000,
+  B11010,
+  B11111,
+  B11010,
+  B10000,
+  B00000,
+};
+
+byte bulletChar[8] = {
+  B00000,
+  B00000,
+  B00100,
+  B01110,
+  B00100,
+  B00000,
+  B00000,
+};
+
+byte enemyChar[8] = {
+  B00001,
+  B01011,
+  B01111,
+  B11111,
+  B01111,
+  B01011,
+  B00001,
+};
 
 class Enemy {
   int *x, *y;
@@ -137,6 +175,10 @@ int currentButton = 0;
 int lastButton = 0;
 
 void setup() {
+  // Upload custom chars to display
+  lcd.createChar( CHAR_PLAYER, playerChar );
+  lcd.createChar( CHAR_BULLET, bulletChar );
+  lcd.createChar( CHAR_ENEMY, enemyChar );
 
   // Initialize hardware
   lcd.begin( LCD_COLS, LCD_ROWS );
@@ -248,7 +290,8 @@ void drawEnemies() {
   for(int c=0; c<MAX_ENEMIES; c++) {
     if(exist[c]) {
       lcd.setCursor( enemy[c]->getx(), enemy[c]->gety() );
-      lcd.print("*");
+      //lcd.print("*");
+      lcd.write( byte( CHAR_ENEMY ) );
     }
   }
 }
@@ -267,9 +310,9 @@ void moveEnemies() {
   }
   
   // Create new enemies
-  int rand = random(1, 100);
-  if(rand>80) {
-    rand = random(0,2);
+  int rand = random( 1, 100 );
+  if( rand < NEW_ENEMY_PROBABILITY ) {
+    rand = random( POS_Y_MIN, POS_Y_MAX + 1 );
     for (int c = 0; c < MAX_ENEMIES; c++) {
       if (!exist[c]) {
         enemy[c] = new Enemy(rand);
@@ -394,14 +437,16 @@ void drawBullets() {
   for (int c=0; c<MAX_BULLETS; c++) {
     if (bullet_exists[c]) {
       lcd.setCursor( bullet[c]->getx(), bullet[c]->gety() );
-      lcd.print("-");
+      //lcd.print("-");
+      lcd.write( byte( CHAR_BULLET ) );
     }
   }
 }
 
 void drawPlayer() {
   lcd.setCursor(playerPos[POS_X], playerPos[POS_Y]);
-  lcd.print(">");
+  //lcd.print(">");
+  lcd.write(byte(CHAR_PLAYER));
 }
 
 void buzzer() {
