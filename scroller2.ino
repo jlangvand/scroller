@@ -1,10 +1,41 @@
-#include <TimedAction.h>
+/*
+Scroller Version 2 (beta 1) by jlangvand, jlangvand@gmail.com
 
-#include <EEPROM.h>
+Copyright 2013 Joakim Langvand
 
-#include <LiquidCrystal.h>
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-LiquidCrystal lcd(8,9,4,5,6,7);
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+Usage:
+
+This program is written for the Arduino with a 16x2 characters LCD on a LCD Shield.
+
+The program could run on a 20x4 with small modifications.
+
+Feel free to expand the program. Please send me an email if you do something cool! ;)
+
+--
+Joakim Langvand
+jlangvand@gmail.com
+
+*/
+
+#include <TimedAction.h>    // Handling the timing of events
+#include <EEPROM.h>         // Saving highscore (and settings) to EEPROM
+#include <LiquidCrystal.h>  // Handling the LCD
+
+LiquidCrystal lcd(8,9,4,5,6,7); // Initialize the LCD
 
 #define BTN_UP 4
 #define BTN_DOWN 3
@@ -18,42 +49,24 @@ LiquidCrystal lcd(8,9,4,5,6,7);
 
 #define SCORE_LINE 0
 
+#define LCD_COLS 16
+#define LCD_ROWS 2
+
 #define POS_X 0
 #define POS_Y 1
 
 #define POS_X_MIN 0
-#define POS_X_MAX 15
+#define POS_X_MAX LCD_COLS -1
 #define POS_Y_MIN 0
-#define POS_Y_MAX 1
+#define POS_Y_MAX LCD_ROWS -1
 
 #define MAX_ENEMIES 7
 #define MAX_BULLETS 8
 
 #define DEBUG 1
+#define ENABLE_SOUND_BY_DEFAULT 1
 
 #define VERSION "v2b2"
-
-
-/*void Keypad::update() {
-  int *key = new int;
-  if ( analogRead( *pin ) < 1000 ) delay( 10 );
-  int val = analogRead(*pin);
-  if ( val > 750 ) *key = 0; // No button
-  else if ( val > 600 ) *key = 1; // Select
-  else if ( val > 350 ) *key = 2; // Left
-  else if ( val > 200 ) *key = 3; // Down
-  else if ( val > 100 ) *key = 4; // Up
-  else *key = 5; // Right
-  
-  *last = *current;
-  
-  *current = *key;
-  
-  if ( *current > 0 && *last != *current ) *re = *current;
-  //else *re = 0;
-  
-  delete key;
-}*/
 
 class Enemy {
   int *x, *y;
@@ -95,14 +108,14 @@ int Enemy::getx() { return *x; }
 
 int Enemy::gety() { return *y; }
 
-int level=0;
+//int level=0;
 
 int playerPos[2] = {0,1};
 
 int score = 0;
 int highscore;
 
-int buzzEnable = 0;
+int buzzEnable = ENABLE_SOUND_BY_DEFAULT;
 
 Enemy* enemy[MAX_ENEMIES];
 int exist[MAX_ENEMIES];
@@ -122,48 +135,36 @@ TimedAction enemyLogics = TimedAction( 100, moveEnemies );
 int currentButton = 0;
 int lastButton = 0;
 
-int nextUpdate;
-
 void setup() {
-  lcd.begin(16,2);
-  Serial.begin(9600);
-  highscore = EEPROM.read(206);
+
+  // Initialize hardware
+  lcd.begin( LCD_COLS, LCD_ROWS );
+  Serial.begin( 9600 );
+  highscore = EEPROM.read( 206 );
   
-  welcome(1);
+  welcome( 1 );
   
-  for (int c=0; c<MAX_ENEMIES; c++) exist[c] = 0;
-  for (int c=0; c<MAX_BULLETS; c++) bullet_exists[c] = 0;
+  for ( int c=0; c<MAX_ENEMIES; c++ ) exist[ c ] = 0;
+  for ( int c=0; c<MAX_BULLETS; c++ ) bullet_exists[ c ] = 0;
   
+  Serial.print( "Highscore in EEPROM: " );
+  Serial.println( highscore );
+  Serial.print( "Raw dump addr 0x206: " );
+  Serial.println( EEPROM.read( 206 ) );
   
-  Serial.print("Highscore in EEPROM: ");
-  Serial.println(highscore);
-  Serial.print("Raw dump addr 0x206: ");
-  Serial.println(EEPROM.read(206));
-  
-  randomSeed(analogRead(2));
-  
-  nextUpdate = millis() + 100;
+  randomSeed( analogRead( 2 ) );
 }
 
 void loop() {
   // Logics
   
-  
-  //keypad->update();
   playerLogics.check();
   enemyLogics.check();
   bulletLogics.check();
   checkForInput.check();
   detectCollision.check();
   
-  //score++;
-  //if (DEBUG) printDebug(enemy.getx(),enemy.gety());
-  
-  // Graphics
   drawScreen.check();
-  
-  // Delay
-  //delay(100);
 }
 
 // Player logic
@@ -171,19 +172,19 @@ void loop() {
 void movePlayer() {
   switch ( getSingleButton() ) {
     case BTN_UP:
-    playerPos[POS_Y]--;
+    playerPos[ POS_Y ]--;
     break;
     
     case BTN_DOWN:
-    playerPos[POS_Y]++;
+    playerPos[ POS_Y ]++;
     break;
     
     case BTN_LEFT:
-    playerPos[POS_X]--;
+    playerPos[ POS_X ]--;
     break;
     
     case BTN_RIGHT:
-    playerPos[POS_X]++;
+    playerPos[ POS_X ]++;
     break;
     
     case BTN_SELECT:
@@ -191,24 +192,16 @@ void movePlayer() {
     break;
   }
   
-  if (playerPos[POS_Y] < POS_Y_MIN) playerPos[POS_Y] = POS_Y_MIN;
-  else if (playerPos[POS_X] < POS_X_MIN) playerPos[POS_X] = POS_X_MIN;
-  else if (playerPos[POS_Y] > POS_Y_MAX) playerPos[POS_Y] = POS_Y_MAX;
-  else if (playerPos[POS_X] > POS_X_MAX) playerPos[POS_X] = POS_X_MAX;
+  if ( playerPos[ POS_Y ] < POS_Y_MIN ) playerPos[ POS_Y ] = POS_Y_MIN;
+  else if ( playerPos[ POS_X ] < POS_X_MIN ) playerPos[ POS_X ] = POS_X_MIN;
+  else if ( playerPos[ POS_Y ] > POS_Y_MAX ) playerPos[ POS_Y ] = POS_Y_MAX;
+  else if ( playerPos[ POS_X ] > POS_X_MAX ) playerPos[ POS_X ] = POS_X_MAX;
   
 }
 
 void saveButtonState() {
-  //if ( getButton() ) currentButton = getButton();
   currentButton = getButton();
 }
-
-/*int getSingleButton() {
-  if ( lastButton != currentButton ) {
-    lastButton = currentButton;
-    return currentButton;
-  } else return 0;
-}*/
 
 int getSingleButton() {
   int cb = getButton();
@@ -250,8 +243,6 @@ void moveBullets() {
 // Enemy logic
 
 void drawEnemies() {
-  //int x = enemy.getx();
-  //int y = enemy.gety();
   for(int c=0; c<MAX_ENEMIES; c++) {
     if(exist[c]) {
       lcd.setCursor( enemy[c]->getx(), enemy[c]->gety() );
@@ -292,13 +283,13 @@ void moveEnemies() {
 void endgame() {
   lcd.noDisplay();
   buzzdrop();
-  delay(500);
+  delay(300);
   lcd.display();
-  delay(500);
+  delay(300);
   lcd.noDisplay();
-  delay(500);
+  delay(300);
   lcd.display();
-  delay(500);
+  delay(300);
   lcd.noDisplay();
   lcd.clear();
   lcd.display();
@@ -332,24 +323,6 @@ void checkCollision() {
       }
     }
   }
-  
-/*  // Collisions between bullet and enemy
-  for(int b=0; b<MAX_BULLETS; b++) {
-    if(bullet_exists[b]) {
-      for ( int e = 0; e < MAX_ENEMIES; e++ ) {
-        if ( exist[e] ) {
-          if ( ( enemy[e]->getx() == ( bullet[b]->getx() || bullet[b]->getx() - 1 ) ) && ( enemy[e]->gety() == bullet[b]->gety() ) ) {
-            delete enemy[e];
-            exist[e] = 0;
-            
-            destroyBullet(b);
-            
-            score++;
-          }
-        }
-      }
-    }
-  }*/
 }
 
 void bulletEnemyCollision(int b, int c) {
@@ -422,33 +395,6 @@ void drawBullets() {
 void drawPlayer() {
   lcd.setCursor(playerPos[POS_X], playerPos[POS_Y]);
   lcd.print(">");
-}
-
-/*void printDebug(int ex, int ey) {
-  Serial.print("Player pos x: ");
-  Serial.print(playerPos[POS_X]);
-  Serial.print(" y: ");
-  Serial.println(playerPos[POS_Y]);
-  Serial.println();
-  Serial.print("Enemy pos x: ");
-  Serial.print(ex);
-  Serial.print(" y: ");
-  Serial.println(ey);
-  Serial.println();
-}*/
-
-void printDebug() {
-  Serial.print("Player pos x: ");
-  Serial.print(playerPos[POS_X]);
-  Serial.print(" y: ");
-  Serial.println(playerPos[POS_Y]);
-  Serial.println();
-  Serial.print("Bullets: ");
-  int countBullets = 0;
-  for ( int c = 0; c < MAX_BULLETS; c++ ) {
-    if ( bullet_exists[c] ) countBullets++;
-  }
-  Serial.println(countBullets);
 }
 
 void buzzer() {
@@ -625,22 +571,4 @@ void welcome(int val) {
   sc(5,0);
   lcd.print(highscore);
   while( !getButton() );
-/*  while( !getButton() ) {
-    delay(200);
-    sc();
-    lcd.print("HIGHSCORE: ");
-    lcd.print(highscore);
-    for(int c=0;c<10;c++) {
-      delay(100);
-      if( getButton ) break;
-    }
-    sc();
-    lcd.print("    SCROLLER    ");
-    for(int c=0;c<10;c++) {
-      delay(100);
-      if( getButton ) break;
-    }
-  }*/
 }
-
-
