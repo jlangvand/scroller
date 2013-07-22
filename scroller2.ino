@@ -152,6 +152,7 @@ int Enemy::gety() { return *y; }
 int playerPos[2] = {0,1};
 
 int score = 0;
+int scoreDisplay = 0;
 int highscore;
 
 int buzzEnable = ENABLE_SOUND_BY_DEFAULT;
@@ -418,10 +419,10 @@ void updateScreen() {
 }
 
 void drawScore() {
-  if ( score < 10 ) lcd.setCursor( 15, SCORE_LINE );
-  else if ( score < 100 ) lcd.setCursor( 14, SCORE_LINE );
-  else if ( score < 1000 ) lcd.setCursor( 13, SCORE_LINE );
-  else if ( score < 10000 ) lcd.setCursor( 14, SCORE_LINE );
+  if ( scoreDisplay < 10 ) lcd.setCursor( 15, SCORE_LINE );
+  else if ( scoreDisplay < 100 ) lcd.setCursor( 14, SCORE_LINE );
+  else if ( scoreDisplay < 1000 ) lcd.setCursor( 13, SCORE_LINE );
+  else if ( scoreDisplay < 10000 ) lcd.setCursor( 12, SCORE_LINE );
   else {
     lcd.setCursor( 13, SCORE_LINE );
     lcd.print( ">9K!" );
@@ -429,7 +430,10 @@ void drawScore() {
   }
   //sc(15,0);
   //lcd.rightToLeft();
-  lcd.print(score);
+  lcd.print( scoreDisplay );
+  
+  if ( scoreDisplay < score ) scoreDisplay++;
+  else if ( scoreDisplay > score ) scoreDisplay--;
   //lcd.leftToRight();
 }
 
